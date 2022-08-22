@@ -1,0 +1,47 @@
+version: '3.5'
+
+volumes:
+    mysql:
+
+services:
+    nginx:
+        image: nginx:latest
+        ports:
+            - "8092:80"
+        volumes:
+            - ./public:/var/www/public
+            - ./containers/nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf
+        depends_on:
+            - php-fpm
+
+    beanstalkd:
+        image: schickling/beanstalkd
+
+    mysql:
+        image: mysql:latest
+        ports:
+            - "8836:3306"
+        environment:
+            MYSQL_ALLOW_EMPTY_PASSWORD: true
+        volumes:
+            - mysql:/var/lib/mysql
+            - ./containers/mysql/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+
+
+    php-fpm:
+        build:
+            context: ./containers/php-fpm
+        volumes:
+            - .:/var/www
+        depends_on:
+            - mysql
+
+
+    php-worker:
+        build:
+            context: ./containers/php-worker
+        volumes:
+            - .:/var/www
+            - ./containers/php-worker/supervisord.d:/etc/supervisord.d
+        depends_on:
+            - mysql
